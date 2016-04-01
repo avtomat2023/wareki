@@ -1,0 +1,146 @@
+#!/usr/bin/env python3
+
+# @(#) wareki - 西暦-和暦変換プログラム
+
+from datetime import date, MAXYEAR
+import sys
+
+def usage():
+    sys.stderr.write(
+        "Usage:\n" +
+        "    $ wareki\n" +
+        "    " + "\n".join(toWarekiYears(date.today().year)) + "\n" +
+        "    $ wareki 2011\n" +
+        "    2011年 = 平成23年\n" +
+        "    $ wareki h 8\n" +
+        "    平成8年 = 1996年\n" +
+        "    $ wareki S45\n" +
+        "    昭和45年 = 1970年\n"
+    )
+
+# 和暦と開始年月日の対応
+class Wareki:
+    def __init__(self, date, gengou, abbrs):
+        # 和暦の開始日（datetime.dateオブジェクト）
+        self.date = date
+        # 和暦の元号（文字列）
+        self.gengou = gengou
+        # この和暦として扱われる、元号の省略表記（文字列のシーケンス）
+        self.abbrs = abbrs
+
+    def warekiYearToStr(self, year):
+        if (year == 1):
+            return self.gengou + "元年"
+        else:
+            return self.gengou + str(year) + "年"
+
+    def ADYearToStr(self, year):
+        yearEllapse = year - self.date.year
+        if yearEllapse < 0:
+            raise ValueError("year too early")
+        else:
+            return self.warekiYearToStr(yearEllapse + 1)
+
+    def warekiYearToADYear(self, year):
+        return self.date.year + year-1
+
+    def isAbbreviatedAs(self, abbr):
+        return abbr.lower() in self.abbrs
+
+# 扱えるすべての和暦の一覧（Listといいつつタプル）
+# abbrsに複数の和暦間で重複しているものが存在する場合、
+# より最近の和暦が優先される。
+# 本来そのようなことはあってはならないが、
+# warekiListをファイルから生成するよう仕様変更することが考えられるため、
+# このような仕様に定めておく。
+# この動作を実現するため、warekiListは、
+# 新しい和暦から古い和暦の順で並ぶ必要がある。
+warekiList = (
+    Wareki(date(1989,  1,  8), "平成", ("h", "heisei")),
+    Wareki(date(1926, 12, 25), "昭和", ("s", "shouwa", "syouwa",
+                                        "showa", "syowa")),
+    Wareki(date(1912,  7, 30), "大正", ("t", "taishou", "taisyou",
+                                        "taisho", "taisyo")),
+)
+
+# 成功すると、空でない文字列を返す
+# 失敗するとNoneを返す
+def toADYear(gengouAbbr, year):
+    for wareki in warekiList:
+        if wareki.isAbbreviatedAs(gengouAbbr):
+            adYear = wareki.warekiYearToADYear(year)
+            return wareki.warekiYearToStr(year) + " = " + str(adYear) + "年"
+    else:
+        return None
+
+# 成功すると、1つか2つの空でない文字列からなるリストを返す、
+# 失敗すると空リストを返す
+def toWarekiYears(year):
+    sentinel = Wareki(date(MAXYEAR, 1, 1), "sentinel", ())
+    endList = reversed((sentinel,) + warekiList[:-1])
+    l = []
+    for begin, end in zip(reversed(warekiList), endList):
+        if begin.date.year <= year <= end.date.year:
+            l.append(str(year) + "年 = " + begin.ADYearToStr(year))
+    return l
+
+if __name__ == '__main__':
+    if len(sys.argv) == 1:
+        # 現在の西暦年を変換
+        for s in toWarekiYears(date.today().year):
+            print(s)
+
+    elif len(sys.argv) == 2:
+        # 引数は、ヘルプオプション(-hまたは--help)か、
+        # 西暦年（2014とか）か、
+        # 元号と年をつなげて書いたもの（h19 とか）
+        # ヘルプオプションのケース
+        if sys.argv[0] in ('-h', '-help'):
+            usage()
+            exit(0)
+
+        # 西暦年のケース
+        if sys.argv[1][0].isdigit():
+            strings = toWarekiYears(int(sys.argv[1]))
+            if not strings:
+                print(sys.argv[1] + "年は扱えません。", file=sys.stderr)
+                exit(1)
+            for s in strings:
+                print(s)
+            exit(0)
+
+        # 元号と年のケース
+        abbrEnd = 0
+        for c in sys.argv[1]:
+            if c.isdigit():
+                break
+            abbrEnd += 1
+        if abbrEnd == len(sys.argv[1]):
+            usage()
+            exit(1)
+
+        givenGengou = sys.argv[1][:abbrEnd]
+        givenYear = int(sys.argv[1][abbrEnd:])
+        s = toADYear(givenGengou, givenYear)
+        if s:
+            print(s)
+        else:
+            print('"' + givenGengou + '"に対応する元号は存在しません。',
+                  file=sys.stderr)
+            sys.exit(1)
+
+    elif len(sys.argv) == 3:
+        # 引数は、元号と年
+        givenGengou = sys.argv[1]
+        givenYear = int(sys.argv[2])
+        s = toADYear(givenGengou, givenYear)
+        if s:
+            print(s)
+        else:
+            print('"' + givenGengou + '"に対応する元号は存在しません。',
+                  file=sys.stderr)
+            sys.exit(1)
+
+    else:
+        usage()
+        sys.exit(1)
