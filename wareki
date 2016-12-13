@@ -10,11 +10,12 @@ def usage():
         "Usage:\n" +
         "    $ wareki\n" +
         "    " + "\n".join(toWarekiYears(date.today().year)) + "\n" +
-        "    $ wareki 2011\n" +
-        "    2011年 = 平成23年\n" +
+        "    $ wareki 1989\n" +
+        "    1989年 = 昭和64年\n" +
+        "    1989年 = 平成元年\n" +
         "    $ wareki h 8\n" +
         "    平成8年 = 1996年\n" +
-        "    $ wareki S45\n" +
+        "    $ wareki s45\n" +
         "    昭和45年 = 1970年\n"
     )
 
